@@ -1,3 +1,57 @@
+# dependencies
+# pip install tequila-basic
+# pip install qulacs
+# potentially needs openfermion downgrade from 1.4.0 to 1.3.0
+import tequila as tq
+import numpy
+import time
+
+def run(n_qubits, n_layers=1, backend="qulacs", samples=10000):
+    # some parametrized circuit (taking parameter count and depth proportional to n_qubits)
+    # supposed to mimick features of circuits coming from QAOA style time evolutions
+    # parameter count: n_layers*n_qubits
+    # depth = n_layers*n_qubits + 1
+    U = tq.gates.H(target=[i for i in range(n_qubits)])
+    for layer in range(n_layers):
+        for q in range(n_qubits):
+            U += tq.gates.Ry(angle=(q,layer,0), target=q)
+        for q in range(0,n_qubits-1):
+            U += tq.gates.CNOT(q,q+1%n_qubits)
+    
+    # make circuit picture
+    #U.export_to(filename="circuit_8_1.png")
+    
+    # QAOA style measurement (standard basis, or all-z Hamiltonian)
+    H = tq.paulis.Z([i for i in range(n_qubits)])
+    
+    # Expectation Value to measure
+    E = tq.ExpectationValue(H=H, U=U)
+
+    # single gradient evaluation of random parameter in circuit
+    dE = tq.grad(E, variable=numpy.random.choice(E.extract_variables()))
+    
+    # compile cost and gradient function
+    cost = tq.compile(E, backend=backend)
+    grad_cost = tq.compile(dE, backend=backend)
+            
+    # all variables to 1.0 in evaluation
+    variables = {k:1.0 for k in E.extract_variables()}
+    
+    start = time.time()
+    evaluated = cost(variables, samples=samples)
+    stop = time.time()
+    print("{:2} qubits, {:3} layers, {:5} samples/shots : {:3.1f}s for cost function".format(n_qubits, n_layers, str(samples), stop-start))
+    time_cost = stop-start
+    
+    start = time.time()
+    evaluated = grad_cost(variables, samples=samples)
+    stop = time.time()
+    time_grad = stop-start
+    print("{:2} qubits, {:3} layers, {:5} samples/shots : {:3.1f}s for gradient".format(n_qubits, n_layers, str(samples), stop-start))
+    
+    return time_cost, time_grad
+
+####### Create Plots:
 data_cost1 = {}
 data_grad1 = {}
 for n_qubits in [8,10,12,14,16,18,20,22]: 
