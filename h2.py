@@ -1,3 +1,8 @@
+# dependencies:
+# pip install tequila-basic
+# pip install pyscf
+# conda install madtequila -c kottmann # only for Linux64 for now
+# manual compiling (mac): https://github.com/kottmanj/madness see readme
 import tequila as tq
 
 geom = "H 0.0 0.0 0.0\nH 0.0 0.0 {}"
